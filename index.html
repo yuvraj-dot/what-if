@@ -1,0 +1,100 @@
+<!doctype html>
+<!--
+  The old address (yuvraj-dot.github.io/what-if/) after the move to parallelpens.com.
+  Published from a small public repo named "what-if" as index.html and 404.html, so every old link lands here.
+  Browsers keep each site's storage separate, so this page reads the stories saved at the old address
+  and hands them to parallelpens.com/import, window to window. Visitors with nothing saved go straight there.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Parallel Pens Has Moved</title>
+    <style>
+      :root { --cream: #fff9ef; --plum: #30233d; --plum-3: #7a6b86; --coral: #f47765; --line: rgba(48, 35, 61, 0.18); }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--cream); color: var(--plum); font: 17px/1.55 system-ui, -apple-system, sans-serif; }
+      main { width: 100%; max-width: 480px; background: #fff; border: 2px solid var(--plum); border-radius: 22px; box-shadow: 4px 5px 0 var(--plum); padding: 28px 24px; }
+      h1 { margin: 0 0 8px; font: 700 1.6rem/1.2 Georgia, serif; }
+      p { margin: 0 0 16px; }
+      .muted { color: var(--plum-3); font-size: 0.95rem; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+      button, a.btn { font: inherit; font-weight: 600; border-radius: 999px; padding: 10px 18px; cursor: pointer; text-decoration: none; border: 2px solid var(--plum); }
+      .primary { background: var(--coral); color: #fff; border-color: var(--coral); }
+      .secondary { background: #fff; color: var(--plum); }
+      button:focus-visible, a.btn:focus-visible { outline: 3px solid var(--plum); outline-offset: 3px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>We’ve moved to parallelpens.com</h1>
+      <p id="intro">PlotTwist is now <strong>Parallel Pens</strong>, at a new address.</p>
+      <div id="has-stories" hidden>
+        <p>You have <strong id="count"></strong> saved in this browser. Bring them with you: they’ll open at the new address on this device.</p>
+        <div class="actions">
+          <button type="button" class="primary" id="bring">Bring my stories</button>
+          <a class="btn secondary" id="skip" href="https://parallelpens.com/">Just take me there</a>
+        </div>
+      </div>
+      <p id="status" class="muted" role="status"></p>
+    </main>
+    <script>
+      ;(function () {
+        var NEW = 'https://parallelpens.com'
+        // Old links looked like /what-if/play/abc; keep the path after /what-if.
+        var rest = location.pathname.replace(/^\/what-if/, '') || '/'
+        var target = NEW + rest + location.search + location.hash
+
+        var saved = null
+        var drafts = {}
+        try {
+          saved = JSON.parse(localStorage.getItem('plottwist:v1') || 'null')
+          for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i)
+            if (key && key.indexOf('plottwist:draft:') === 0) drafts[key.slice('plottwist:draft:'.length)] = localStorage.getItem(key)
+          }
+        } catch (e) {
+          saved = null
+        }
+        var count = saved && saved.stories ? Object.keys(saved.stories).length : 0
+        var moved = false
+        try {
+          moved = !!localStorage.getItem('parallelpens:moved')
+        } catch (e) {}
+
+        // Nothing to carry over, or already carried over: go straight to the new address.
+        if (!count || moved) {
+          location.replace(target)
+          return
+        }
+
+        document.getElementById('count').textContent = count === 1 ? '1 story' : count + ' stories'
+        document.getElementById('has-stories').hidden = false
+        document.getElementById('skip').href = target
+        var status = document.getElementById('status')
+        var win = null
+
+        window.addEventListener('message', function (e) {
+          if (e.origin !== NEW || e.source !== win) return
+          if (e.data && e.data.type === 'pp-ready') {
+            win.postMessage({ type: 'pp-transfer', saved: saved, drafts: drafts }, NEW)
+          } else if (e.data && e.data.type === 'pp-done') {
+            try {
+              localStorage.setItem('parallelpens:moved', new Date().toISOString())
+            } catch (err) {}
+            status.textContent = 'Done. Your stories are on parallelpens.com. You can close this tab.'
+            document.getElementById('bring').disabled = true
+          }
+        })
+
+        document.getElementById('bring').addEventListener('click', function () {
+          status.textContent = 'Opening parallelpens.com…'
+          win = window.open(NEW + '/import', '_blank')
+          if (!win) status.textContent = 'Your browser blocked the new tab. Allow pop-ups for this page and try again.'
+        })
+      })()
+    </script>
+  </body>
+</html>
